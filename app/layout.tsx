@@ -7,8 +7,18 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 });
+const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+const appUrl =
+  rawAppUrl && rawAppUrl.trim() !== ""
+    ? rawAppUrl.startsWith("http")
+      ? rawAppUrl.trim()
+      : `https://${rawAppUrl.trim()}`
+    : process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL.trim()}`
+    : "http://localhost:3000";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: "PaperLens AI — Read Smarter. Research Deeper. Create Better.",
   description:
     "Production-grade AI research assistant for students, researchers, professors, and academic institutions. Analyze papers, detect hidden research gaps, compare studies, and generate verified research drafts.",
