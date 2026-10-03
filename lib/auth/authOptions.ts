@@ -29,23 +29,39 @@ export const authOptions: NextAuthOptions = {
         }
 
         const inputEmail = credentials.email.toLowerCase().trim();
-        let user = await prisma.user.findUnique({
-          where: { email: inputEmail },
-        });
+        let user: any = null;
 
-        // Fallback for legacy database records with @researchlens.ai or @paperlens.ai
-        if (!user) {
-          const alternateEmail = inputEmail.includes("@paperlens.ai")
-            ? inputEmail.replace("@paperlens.ai", "@researchlens.ai")
-            : inputEmail.includes("@researchlens.ai")
-            ? inputEmail.replace("@researchlens.ai", "@paperlens.ai")
-            : null;
+        try {
+          user = await prisma.user.findUnique({
+            where: { email: inputEmail },
+          });
 
-          if (alternateEmail) {
+          // Fallback for legacy database records with @researchlens.ai or @paperlens.ai
+          if (!user) {
+            const alternateEmail = inputEmail.includes("@paperlens.ai")
+              ? inputEmail.replace("@paperlens.ai", "@researchlens.ai")
+              : inputEmail.includes("@researchlens.ai")
+              ? inputEmail.replace("@researchlens.ai", "@paperlens.ai")
+              : null;
+
+            if (alternateEmail) {
+              user = await prisma.user.findUnique({
+                where: { email: alternateEmail },
+              });
+            }
+          }
+
+          // If a demo account was requested but doesn't exist yet, seed on-demand
+          if (!user && (inputEmail === "demo@paperlens.ai" || inputEmail === "premium@paperlens.ai")) {
+            const { seedDatabase } = await import("@/lib/db/seed");
+            await seedDatabase();
             user = await prisma.user.findUnique({
-              where: { email: alternateEmail },
+              where: { email: inputEmail },
             });
           }
+        } catch (dbErr: any) {
+          console.error("Database query failed during credentials authorization:", dbErr);
+          throw new Error("Unable to access database. Please restart the dev server to refresh connection.");
         }
 
         if (!user || !user.passwordHash) {

@@ -15,9 +15,15 @@ process.env.NEXTAUTH_URL = resolvedAuthUrl;
 
 // Sanitize DATABASE_URL so Prisma never throws an empty URL validation error
 let resolvedDbUrl = process.env.DATABASE_URL?.trim();
-if (!resolvedDbUrl) {
-  const dbPath = path.resolve(process.cwd(), "prisma", "dev.db").replace(/\\/g, "/");
-  resolvedDbUrl = `file:${dbPath}`;
+if (!resolvedDbUrl || resolvedDbUrl === "" || resolvedDbUrl.startsWith("file:")) {
+  const relativePart = resolvedDbUrl?.startsWith("file:")
+    ? resolvedDbUrl.replace(/^file:/, "").replace(/^\.\//, "")
+    : "dev.db";
+  const targetPath =
+    relativePart && relativePart !== "dev.db" && !relativePart.startsWith("prisma/")
+      ? path.resolve(process.cwd(), "prisma", relativePart)
+      : path.resolve(process.cwd(), relativePart?.startsWith("prisma/") ? relativePart : "prisma/dev.db");
+  resolvedDbUrl = `file:${targetPath.replace(/\\/g, "/")}`;
   process.env.DATABASE_URL = resolvedDbUrl;
 }
 
