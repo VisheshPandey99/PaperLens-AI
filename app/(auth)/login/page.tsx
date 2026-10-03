@@ -92,13 +92,6 @@ function LoginForm() {
 
   const handleGoogleSignIn = () => {
     setError("");
-    const isGoogleConfigured = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
-    if (!isGoogleConfigured) {
-      setError(
-        "Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env to enable Google OAuth. For immediate testing, click one of the Quick Demo Accounts above!"
-      );
-      return;
-    }
     signIn("google", { callbackUrl });
   };
 

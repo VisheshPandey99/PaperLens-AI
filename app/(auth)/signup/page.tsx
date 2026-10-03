@@ -61,13 +61,6 @@ export default function SignupPage() {
 
   const handleGoogleSignUp = () => {
     setError("");
-    const isGoogleConfigured = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
-    if (!isGoogleConfigured) {
-      setError(
-        "Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env, or create an account using the form above."
-      );
-      return;
-    }
     signIn("google", { callbackUrl: "/dashboard" });
   };
 
