@@ -64,8 +64,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Unable to access database. Please restart the dev server to refresh connection.");
         }
 
-        if (!user || !user.passwordHash) {
+        if (!user) {
           throw new Error("No academic account found with this email.");
+        }
+
+        if (!user.passwordHash) {
+          throw new Error("This account does not have a password set yet. Please sign in with Google or visit the Sign Up page to create a password.");
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
@@ -90,6 +94,13 @@ export const authOptions: NextAuthOptions = {
             clientId: process.env.GOOGLE_CLIENT_ID!.trim(),
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!.trim(),
             allowDangerousEmailAccountLinking: true,
+            authorization: {
+              params: {
+                prompt: "select_account",
+                access_type: "offline",
+                response_type: "code",
+              },
+            },
           }),
         ]
       : []),

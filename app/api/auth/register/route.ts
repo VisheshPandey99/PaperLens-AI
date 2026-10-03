@@ -29,8 +29,33 @@ export async function POST(req: NextRequest) {
     });
 
     if (existing) {
+      if (!existing.passwordHash) {
+        const passwordHash = await bcrypt.hash(password, 10);
+        const updated = await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            passwordHash,
+            name: name || existing.name,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            plan: true,
+            analysisCount: true,
+          },
+        });
+        return NextResponse.json(
+          {
+            message: "Password set successfully for your account! You can now sign in.",
+            user: updated,
+          },
+          { status: 200 }
+        );
+      }
+
       return NextResponse.json(
-        { error: "An academic account with this email address already exists." },
+        { error: "An academic account with this email address already exists. Please sign in." },
         { status: 409 }
       );
     }
