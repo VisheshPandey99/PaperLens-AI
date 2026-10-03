@@ -4,6 +4,13 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 
+const hasGoogleAuth = Boolean(
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_ID.trim() !== "" &&
+  process.env.GOOGLE_CLIENT_SECRET &&
+  process.env.GOOGLE_CLIENT_SECRET.trim() !== ""
+);
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -21,9 +28,25 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Please enter both email and password.");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() },
+        const inputEmail = credentials.email.toLowerCase().trim();
+        let user = await prisma.user.findUnique({
+          where: { email: inputEmail },
         });
+
+        // Fallback for legacy database records with @researchlens.ai or @paperlens.ai
+        if (!user) {
+          const alternateEmail = inputEmail.includes("@paperlens.ai")
+            ? inputEmail.replace("@paperlens.ai", "@researchlens.ai")
+            : inputEmail.includes("@researchlens.ai")
+            ? inputEmail.replace("@researchlens.ai", "@paperlens.ai")
+            : null;
+
+          if (alternateEmail) {
+            user = await prisma.user.findUnique({
+              where: { email: alternateEmail },
+            });
+          }
+        }
 
         if (!user || !user.passwordHash) {
           throw new Error("No academic account found with this email.");
@@ -45,16 +68,54 @@ export const authOptions: NextAuthOptions = {
         } as any;
       },
     }),
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(hasGoogleAuth
       ? [
           GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: process.env.GOOGLE_CLIENT_ID!.trim(),
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET!.trim(),
+            allowDangerousEmailAccountLinking: true,
           }),
         ]
       : []),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google") {
+        if (!user.email) return false;
+        try {
+          const email = user.email.toLowerCase().trim();
+          let existingUser = await prisma.user.findUnique({
+            where: { email },
+          });
+
+          if (!existingUser) {
+            existingUser = await prisma.user.create({
+              data: {
+                name: user.name || "Academic Researcher",
+                email,
+                image: user.image,
+                plan: "FREE",
+                analysisCount: 0,
+                subscriptionStatus: "INACTIVE",
+              },
+            });
+          } else if (user.image && !existingUser.image) {
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: { image: user.image },
+            });
+          }
+
+          // Link the database user ID so JWT gets the correct CUID
+          user.id = existingUser.id;
+          return true;
+        } catch (error) {
+          console.error("Error synchronizing Google user in database:", error);
+          return false;
+        }
+      }
+      return true;
+    },
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
@@ -73,10 +134,22 @@ export const authOptions: NextAuthOptions = {
       // Refresh latest user record from DB on token check
       if (token.id) {
         try {
-          const freshUser = await prisma.user.findUnique({
+          let freshUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { plan: true, analysisCount: true, subscriptionStatus: true },
+            select: { id: true, plan: true, analysisCount: true, subscriptionStatus: true },
           });
+
+          // Fallback to match by email if token.id was set to provider account ID
+          if (!freshUser && token.email) {
+            freshUser = await prisma.user.findUnique({
+              where: { email: (token.email as string).toLowerCase().trim() },
+              select: { id: true, plan: true, analysisCount: true, subscriptionStatus: true },
+            });
+            if (freshUser) {
+              token.id = freshUser.id;
+            }
+          }
+
           if (freshUser) {
             token.plan = freshUser.plan;
             token.analysisCount = freshUser.analysisCount;
@@ -104,6 +177,8 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
     newUser: "/dashboard",
+    error: "/login",
   },
   secret: process.env.NEXTAUTH_SECRET || "researchlens-ai-secret-key-32-chars-minimum-for-security",
 };
+

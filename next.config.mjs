@@ -1,3 +1,5 @@
+import path from "path";
+
 // Sanitize NEXTAUTH_URL to prevent NextAuth "TypeError: Invalid URL (input: '')" during static prerendering
 const rawAuthUrl = process.env.NEXTAUTH_URL;
 const vercelUrl = process.env.VERCEL_URL;
@@ -11,11 +13,27 @@ if (rawAuthUrl && rawAuthUrl.trim() !== "") {
 
 process.env.NEXTAUTH_URL = resolvedAuthUrl;
 
+// Sanitize DATABASE_URL so Prisma never throws an empty URL validation error
+let resolvedDbUrl = process.env.DATABASE_URL?.trim();
+if (!resolvedDbUrl) {
+  const dbPath = path.resolve(process.cwd(), "prisma", "dev.db").replace(/\\/g, "/");
+  resolvedDbUrl = `file:${dbPath}`;
+  process.env.DATABASE_URL = resolvedDbUrl;
+}
+
+const isGoogleAuthEnabled = Boolean(
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_ID.trim() !== "" &&
+  process.env.GOOGLE_CLIENT_SECRET &&
+  process.env.GOOGLE_CLIENT_SECRET.trim() !== ""
+);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   env: {
     NEXTAUTH_URL: resolvedAuthUrl,
+    NEXT_PUBLIC_GOOGLE_AUTH_ENABLED: isGoogleAuthEnabled ? "true" : "false",
   },
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'docx', 'jspdf'],

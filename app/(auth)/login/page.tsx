@@ -14,11 +14,30 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const urlError = searchParams.get("error");
+  const registered = searchParams.get("registered") === "true";
+
+  const getInitialError = (errorCode: string | null) => {
+    if (!errorCode) return "";
+    switch (errorCode) {
+      case "Configuration":
+        return "Google Sign-In is not configured yet. Please provide GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file, or use a Quick Demo Account above.";
+      case "AccessDenied":
+        return "Access was denied. Please try again or use an academic demo account.";
+      case "OAuthSignin":
+      case "OAuthCallback":
+        return "Unable to sign in with Google. Check your Google Cloud OAuth credentials in .env.";
+      case "CredentialsSignin":
+        return "Invalid email or password. Please check your credentials.";
+      default:
+        return errorCode.length < 100 ? errorCode : "An error occurred during authentication.";
+    }
+  };
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(getInitialError(urlError));
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +88,18 @@ function LoginForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSignIn = () => {
+    setError("");
+    const isGoogleConfigured = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+    if (!isGoogleConfigured) {
+      setError(
+        "Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env to enable Google OAuth. For immediate testing, click one of the Quick Demo Accounts above!"
+      );
+      return;
+    }
+    signIn("google", { callbackUrl });
   };
 
   return (
@@ -122,6 +153,13 @@ function LoginForm() {
 
       {/* Form Card */}
       <Card className="p-6 md:p-8 space-y-5 shadow-xl">
+        {registered && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>Account created successfully! Please sign in with your academic credentials below.</span>
+          </div>
+        )}
+
         {error && (
           <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -185,7 +223,7 @@ function LoginForm() {
           type="button"
           variant="outline"
           className="w-full h-11 font-medium gap-2 text-xs"
-          onClick={() => signIn("google", { callbackUrl })}
+          onClick={handleGoogleSignIn}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path

@@ -59,6 +59,18 @@ export default function SignupPage() {
     }
   };
 
+  const handleGoogleSignUp = () => {
+    setError("");
+    const isGoogleConfigured = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+    if (!isGoogleConfigured) {
+      setError(
+        "Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env, or create an account using the form above."
+      );
+      return;
+    }
+    signIn("google", { callbackUrl: "/dashboard" });
+  };
+
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 bg-background academic-grid">
       <div className="w-full max-w-md space-y-6">
@@ -164,7 +176,7 @@ export default function SignupPage() {
             type="button"
             variant="outline"
             className="w-full h-11 font-medium gap-2 text-xs"
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            onClick={handleGoogleSignUp}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
