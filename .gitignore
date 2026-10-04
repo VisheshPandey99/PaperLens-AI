@@ -36,3 +36,5 @@ next-env.d.ts
 # prisma sqlite fallback
 *.db
 *.db-journal
+*.db-wal
+*.db-shm

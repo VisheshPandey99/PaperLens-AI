@@ -34,11 +34,16 @@ export function getResolvedDatabaseUrl(): string {
     }
   }
 
+  const formatSqliteUrl = (filePath: string) => {
+    const cleanPath = filePath.replace(/\\/g, "/");
+    return cleanPath.includes("?") ? `file:${cleanPath}` : `file:${cleanPath}?connection_limit=1`;
+  };
+
   // Pick the first candidate file that physically exists
   for (const candidate of searchCandidates) {
     try {
       if (fs.existsSync(candidate)) {
-        return `file:${candidate.replace(/\\/g, "/")}`;
+        return formatSqliteUrl(candidate);
       }
     } catch {
       // Ignore filesystem permission or access check errors
@@ -56,7 +61,7 @@ export function getResolvedDatabaseUrl(): string {
     console.warn("Could not create prisma directory for database fallback:", e);
   }
 
-  return `file:${fallbackPath.replace(/\\/g, "/")}`;
+  return formatSqliteUrl(fallbackPath);
 }
 
 const resolvedDbUrl = getResolvedDatabaseUrl();

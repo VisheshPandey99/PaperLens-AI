@@ -23,7 +23,8 @@ if (!resolvedDbUrl || resolvedDbUrl === "" || resolvedDbUrl.startsWith("file:"))
     relativePart && relativePart !== "dev.db" && !relativePart.startsWith("prisma/")
       ? path.resolve(process.cwd(), "prisma", relativePart)
       : path.resolve(process.cwd(), relativePart?.startsWith("prisma/") ? relativePart : "prisma/dev.db");
-  resolvedDbUrl = `file:${targetPath.replace(/\\/g, "/")}`;
+  const cleanDbPath = targetPath.replace(/\\/g, "/");
+  resolvedDbUrl = cleanDbPath.includes("?") ? `file:${cleanDbPath}` : `file:${cleanDbPath}?connection_limit=1`;
   process.env.DATABASE_URL = resolvedDbUrl;
 }
 

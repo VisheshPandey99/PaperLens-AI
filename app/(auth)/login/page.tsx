@@ -23,7 +23,7 @@ function LoginForm() {
       case "Configuration":
         return "Google Sign-In is not configured yet. Please provide GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file, or use a Quick Demo Account above.";
       case "AccessDenied":
-        return "Access was denied. Please try again or use an academic demo account.";
+        return "Access was denied. If signing in with Google, ensure your email is added to Test Users in Google Cloud Console (OAuth consent screen), or use an academic demo account above.";
       case "OAuthSignin":
       case "OAuthCallback":
         return "Unable to sign in with Google. Check your Google Cloud OAuth credentials in .env.";
