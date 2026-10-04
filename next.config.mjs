@@ -16,15 +16,19 @@ process.env.NEXTAUTH_URL = resolvedAuthUrl;
 // Sanitize DATABASE_URL so Prisma never throws an empty URL validation error
 let resolvedDbUrl = process.env.DATABASE_URL?.trim();
 if (!resolvedDbUrl || resolvedDbUrl === "" || resolvedDbUrl.startsWith("file:")) {
-  const relativePart = resolvedDbUrl?.startsWith("file:")
-    ? resolvedDbUrl.replace(/^file:/, "").replace(/^\.\//, "")
-    : "dev.db";
-  const targetPath =
-    relativePart && relativePart !== "dev.db" && !relativePart.startsWith("prisma/")
-      ? path.resolve(process.cwd(), "prisma", relativePart)
-      : path.resolve(process.cwd(), relativePart?.startsWith("prisma/") ? relativePart : "prisma/dev.db");
-  const cleanDbPath = targetPath.replace(/\\/g, "/");
-  resolvedDbUrl = cleanDbPath.includes("?") ? `file:${cleanDbPath}` : `file:${cleanDbPath}?connection_limit=1`;
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    resolvedDbUrl = "file:/tmp/dev.db?connection_limit=1";
+  } else {
+    const relativePart = resolvedDbUrl?.startsWith("file:")
+      ? resolvedDbUrl.replace(/^file:/, "").replace(/^\.\//, "")
+      : "dev.db";
+    const targetPath =
+      relativePart && relativePart !== "dev.db" && !relativePart.startsWith("prisma/")
+        ? path.resolve(process.cwd(), "prisma", relativePart)
+        : path.resolve(process.cwd(), relativePart?.startsWith("prisma/") ? relativePart : "prisma/dev.db");
+    const cleanDbPath = targetPath.replace(/\\/g, "/");
+    resolvedDbUrl = cleanDbPath.includes("?") ? `file:${cleanDbPath}` : `file:${cleanDbPath}?connection_limit=1`;
+  }
   process.env.DATABASE_URL = resolvedDbUrl;
 }
 
@@ -44,6 +48,9 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'docx', 'jspdf'],
+    outputFileTracingIncludes: {
+      '/**': ['./prisma/dev.db'],
+    },
   },
   images: {
     remotePatterns: [

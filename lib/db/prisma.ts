@@ -39,6 +39,30 @@ export function getResolvedDatabaseUrl(): string {
     return cleanPath.includes("?") ? `file:${cleanPath}` : `file:${cleanPath}?connection_limit=1`;
   };
 
+  // On Vercel / AWS Lambda (serverless environment where root filesystem is read-only)
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (isServerless) {
+    const tmpDbPath = path.resolve("/tmp", "dev.db");
+
+    // Copy bundled seed database into writable /tmp on container initialization
+    if (!fs.existsSync(tmpDbPath)) {
+      for (const candidate of searchCandidates) {
+        try {
+          if (fs.existsSync(candidate)) {
+            fs.copyFileSync(candidate, tmpDbPath);
+            break;
+          }
+        } catch (copyErr) {
+          console.warn("Could not copy bundled database to /tmp:", copyErr);
+        }
+      }
+    }
+
+    if (fs.existsSync(tmpDbPath)) {
+      return formatSqliteUrl(tmpDbPath);
+    }
+  }
+
   // Pick the first candidate file that physically exists
   for (const candidate of searchCandidates) {
     try {
